@@ -1060,11 +1060,30 @@ function actualizarNivelBadge() {
   const el = document.getElementById('nivel-badge');
   if (!el || !window.PJProgreso) return;
   const p = PJProgreso.estado();
-  el.hidden = p.verdes === 0;
+  el.hidden = p.verdes === 0 && p.xp === 0;
   el.innerHTML = `<span class="nb-ico material-symbols-rounded">emoji_events</span>
     <span class="nb-nivel">Nivel ${p.nivel}</span>
     <span class="nb-bar"><span class="nb-fill" style="width:${Math.round(p.pct * 100)}%"></span></span>
     <span class="nb-sub">faltan ${p.paraSiguiente} Pz</span>`;
+  const poner = (id, valor) => { const nodo = document.getElementById(id); if (nodo) nodo.textContent = valor; };
+  poner('pj-profile-level', p.nivelXP);
+  poner('pj-profile-xp', `${p.xp} XP`);
+  poner('pj-profile-xp-next', `${p.xpParaSiguiente} XP para el siguiente nivel`);
+  const xpFill = document.getElementById('pj-profile-xp-fill');
+  if (xpFill) xpFill.style.width = `${Math.round(p.xpPct * 100)}%`;
+  poner('pj-profile-coins', p.monedas);
+  poner('pj-profile-wins', p.victorias);
+  poner('pj-profile-correct', p.verdes);
+  poner('pj-profile-missed', p.rojos);
+  const ponerEtiquetas = (id, items, vacio, transformar = x => x) => {
+    const contenedor = document.getElementById(id);
+    if (!contenedor) return;
+    contenedor.replaceChildren();
+    if (!items.length) { contenedor.textContent = vacio; return; }
+    items.forEach(item => { const tag = document.createElement('span'); tag.className = 'pj-progress-tag'; tag.textContent = transformar(item); contenedor.appendChild(tag); });
+  };
+  ponerEtiquetas('pj-profile-medals', p.medallas, 'Aún no hay medallas.');
+  ponerEtiquetas('pj-profile-skills', p.habilidadesDominadas, 'Sigue practicando para desbloquear habilidades.', s => s.replaceAll('_', ' '));
 }
 if (document.readyState !== 'loading') actualizarNivelBadge();
 else document.addEventListener('DOMContentLoaded', actualizarNivelBadge);

@@ -1943,6 +1943,49 @@ h1, h2, h3, h4, h5,
 .nb-sign { font-size: 34px; font-weight: 800; color: var(--pj-purple); margin: 0 4px; }
 .nb-opts { max-width: 420px; }
 .nb-opt { font-variant-numeric: tabular-nums; }
+.pj-math-game { width: min(100%, 760px); margin: 12px auto; padding: clamp(14px, 3vw, 24px); border: 2px solid #16817a; border-radius: 10px; background: #f1faf8; text-align: center; }
+.pj-progress-section { background: #f0f7f4; }
+.pj-progress-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 auto 18px; }
+.pj-progress-tabs a { padding: 8px 12px; border: 1px solid #a9c9c1; border-radius: 6px; color: #145b54; background: #fff; text-decoration: none; font-weight: 700; }
+.pj-progress-block { padding: 14px 0; border-top: 1px solid #cadbd6; scroll-margin-top: 90px; }
+.pj-progress-block h3 { margin: 0 0 10px; }
+.pj-progress-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 10px; }
+.pj-progress-stats > div { display: grid; gap: 4px; min-height: 76px; padding: 12px 4px; border-bottom: 2px solid #16817a; }
+.pj-progress-stats span { color: #526c69; font-size: .85rem; }
+.pj-progress-stats strong { color: #173e44; font-size: 1.3rem; }
+.pj-progress-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.pj-progress-tag { display: inline-flex; padding: 7px 10px; border-radius: 6px; background: #d7ece6; color: #145b54; font-weight: 700; }
+.pj-math-game label { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; margin: 8px; font-weight: 700; }
+.pj-math-game input { width: min(130px, 34vw); min-height: 44px; padding: 8px 10px; border: 2px solid #16817a; border-radius: 6px; font: inherit; }
+.pj-math-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 10px; max-width: 560px; margin: 14px auto; }
+.pj-math-question { margin: 16px auto; padding: 15px; border-radius: 8px; background: #fff; color: #183b46; font-size: clamp(1.5rem, 7vw, 2.3rem); font-weight: 800; }
+.pj-alien-question { animation: pj-alien-drop var(--alien-speed, 5s) ease-in infinite alternate; }
+@keyframes pj-alien-drop { from { transform: translateY(-6px); } to { transform: translateY(18px); } }
+.pj-xp-track { width: min(100%, 180px); height: 8px; margin-top: 8px; overflow: hidden; border-radius: 5px; background: #d7e4e0; }
+.pj-xp-track span { display: block; width: 0; height: 100%; background: #e0a52e; transition: width .3s ease; }
+.pj-race-status, .pj-battle-status, .pj-room-progress { display: flex; justify-content: space-between; align-items: center; gap: 12px; max-width: 540px; margin: 12px auto; padding: 10px 14px; border-radius: 6px; background: #e2f2ef; font-weight: 800; }
+.pj-battle-status { font-size: 1.2rem; }
+.pj-fraction-compare { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 22px; margin: 20px auto; }
+.pj-fraction-visual { display: grid; justify-items: center; gap: 8px; font-size: 1.2rem; font-weight: 800; }
+.pj-fraction-visual span { width: 86px; aspect-ratio: 1; border: 3px solid #24535b; border-radius: 50%; }
+.pj-math-clues { max-width: 560px; margin: 14px auto; padding: 12px 18px; border-left: 4px solid #e0a52e; background: #fff9e7; text-align: left; }
+.pj-math-clues p { margin: 8px 0; }
+.pj-shop-products { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 14px auto; text-align: left; }
+.pj-shop-products span { padding: 10px; border-bottom: 1px solid #cbd9d7; background: #fff; }
+.pj-architect-grid { display: grid; grid-template-columns: repeat(5, 34px); justify-content: center; gap: 3px; margin: 16px auto; }
+.pj-architect-grid span { display: grid; place-items: center; width: 34px; aspect-ratio: 1; background: #dceee9; border: 1px solid #16817a; }
+.pj-architect-controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.pj-architect-controls > div { display: flex; align-items: center; gap: 8px; }
+.pj-architect-controls button { width: 44px; height: 44px; border: 1px solid #16817a; border-radius: 6px; background: #fff; color: #145b54; font: inherit; font-size: 1.3rem; cursor: pointer; }
+.pj-pizza-pieces { display: grid; grid-template-columns: repeat(auto-fit, minmax(54px, 1fr)); gap: 8px; max-width: 520px; margin: 16px auto; }
+.pj-pizza-piece { min-height: 58px; border: 2px solid #d8a531; border-radius: 50%; background: #fff2c8; font-size: 1.5rem; cursor: pointer; }
+.pj-pizza-piece.is-selected { border-color: #16817a; background: #ccece5; transform: scale(.94); }
+.pj-game-result { display: grid; justify-items: center; gap: 10px; margin: 18px auto; padding: 18px; border-radius: 8px; background: #fff; }
+.pj-game-result strong { font-size: 1.4rem; }
+.pj-game-result.is-win { border: 2px solid #16817a; }
+.pj-game-result.is-loss { border: 2px solid #d78138; }
+.pj-game-error { color: #a23828; font-weight: 700; }
+@media (max-width: 520px) { .pj-race-status, .pj-battle-status, .pj-room-progress { flex-wrap: wrap; justify-content: center; } .pj-fraction-compare { gap: 10px; } .pj-fraction-visual span { width: 68px; } }
 .nb-build-ctrl { display: flex; justify-content: center; gap: 10px; margin: 8px 0; }
 .nb-count { font-size: 20px; font-weight: 800; text-align: center; color: var(--pj-ink); margin-bottom: 6px; }
 /* Zona de construcción: arrastrar cubos y fusionarlos */

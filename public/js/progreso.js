@@ -11,12 +11,19 @@ window.PJProgreso = {
     try {
       const p = JSON.parse(localStorage.getItem(this.KEY) || '{}');
       return {
+        ...p,
         verdes: Number(p.verdes) || 0,
         rojos: Number(p.rojos) || 0,
-        jugadas: Number(p.jugadas) || 0
+        jugadas: Number(p.jugadas) || 0,
+        xp: Number(p.xp) || 0,
+        monedas: Number(p.monedas) || 0,
+        victorias: Number(p.victorias) || 0,
+        estadisticas: p.estadisticas && typeof p.estadisticas === 'object' ? p.estadisticas : {},
+        medallas: Array.isArray(p.medallas) ? p.medallas : [],
+        habilidadesDominadas: Array.isArray(p.habilidadesDominadas) ? p.habilidadesDominadas : []
       };
     } catch (e) {
-      return { verdes: 0, rojos: 0, jugadas: 0 };
+      return { verdes: 0, rojos: 0, jugadas: 0, xp: 0, monedas: 0, victorias: 0, estadisticas: {}, medallas: [], habilidadesDominadas: [] };
     }
   },
 
@@ -37,6 +44,28 @@ window.PJProgreso = {
     return p;
   },
 
+  recompensar: function (recompensa, tipo) {
+    const p = this.leer();
+    const xp = Math.max(0, Number(recompensa && recompensa.xp) || 0);
+    const monedas = Math.max(0, Number(recompensa && recompensa.coins) || 0);
+    const clave = String(tipo || 'actividad');
+    p.xp += xp;
+    p.monedas += monedas;
+    p.victorias += 1;
+    p.estadisticas.porTipo = p.estadisticas.porTipo || {};
+    const registro = p.estadisticas.porTipo[clave] || { victorias: 0, xp: 0, monedas: 0 };
+    registro.victorias += 1;
+    registro.xp += xp;
+    registro.monedas += monedas;
+    p.estadisticas.porTipo[clave] = registro;
+    p.estadisticas.ultimaVictoria = { tipo: clave, fecha: Date.now() };
+    const medallas = [[1, 'Primera victoria'], [5, 'Cinco victorias'], [10, 'Diez victorias']];
+    medallas.forEach(([umbral, nombre]) => { if (p.victorias >= umbral && !p.medallas.includes(nombre)) p.medallas.push(nombre); });
+    if (registro.victorias >= 5 && !p.habilidadesDominadas.includes(clave)) p.habilidadesDominadas.push(clave);
+    this.guardar(p);
+    return p;
+  },
+
   // Estado completo: nivel actual y progreso hacia el siguiente
   estado: function () {
     const p = this.leer();
@@ -47,6 +76,16 @@ window.PJProgreso = {
       verdes: p.verdes,
       rojos: p.rojos,
       jugadas: p.jugadas,
+      xp: p.xp,
+      nivelXP: Math.floor(p.xp / 100) + 1,
+      xpEnNivel: p.xp % 100,
+      xpParaSiguiente: p.xp > 0 && p.xp % 100 === 0 ? 100 : 100 - (p.xp % 100),
+      xpPct: (p.xp % 100) / 100,
+      monedas: p.monedas,
+      victorias: p.victorias,
+      estadisticas: p.estadisticas,
+      medallas: p.medallas,
+      habilidadesDominadas: p.habilidadesDominadas,
       nivel: nivel,
       enNivel: enNivel,
       paraSiguiente: paraSiguiente,

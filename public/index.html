@@ -8,7 +8,7 @@
   <link rel="canonical" href="https://junior.laplaceta.org/" />
   <link rel="alternate" hreflang="es" href="https://junior.laplaceta.org/" />
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Placeta Junior","url":"https://junior.laplaceta.org/","parentOrganization":{"@type":"Organization","name":"Grupo de La Placeta","url":"https://laplaceta.org"}}</script>
-  <link rel="stylesheet" href="css/styles.css?v=20260902-ico" />
+  <link rel="stylesheet" href="css/styles.css?v=20261007-games" />
   <link rel="stylesheet" href="css/home.css?v=20260831-ui" />
   <link rel="stylesheet" href="css/redesign.css?v=20260831-ui2" />
   <link rel="icon" type="image/png" href="favijunior.png" />
@@ -47,7 +47,8 @@
       </label>
       <nav class="nav-links">
         <a href="/" class="active">Inicio</a>
-        <a href="#actividades">Jugar</a>
+        <a href="#actividades">Aventuras</a>
+        <a href="#mi-progreso">Mi progreso</a>
         <a href="/info">Para familias</a>
       </nav>
       <div class="nav-cta">
@@ -93,6 +94,32 @@
   </section>
 
   <main>
+    <section class="section pj-progress-section" id="mi-progreso">
+      <div class="section-head">
+        <span class="section-kicker"><span class="material-symbols-rounded">person</span> Mi espacio</span>
+        <h2>Mi perfil y progreso</h2>
+      </div>
+      <nav class="pj-progress-tabs" aria-label="Secciones de mi progreso">
+        <a href="#mi-perfil">Mi perfil</a><a href="#mis-logros">Mis logros</a><a href="#habilidades-dominadas">Habilidades</a>
+      </nav>
+      <div id="mi-perfil" class="pj-progress-block" aria-label="Resumen de perfil">
+        <div class="pj-progress-stats">
+          <div><span>Nivel</span><strong id="pj-profile-level">1</strong><div class="pj-xp-track"><span id="pj-profile-xp-fill"></span></div></div>
+          <div><span>Experiencia</span><strong id="pj-profile-xp">0 XP</strong><small id="pj-profile-xp-next">100 XP para el siguiente nivel</small></div>
+          <div><span>Monedas</span><strong id="pj-profile-coins">0</strong></div>
+          <div><span>Victorias</span><strong id="pj-profile-wins">0</strong></div>
+          <div><span>Respuestas correctas</span><strong id="pj-profile-correct">0</strong></div>
+          <div><span>Respuestas por revisar</span><strong id="pj-profile-missed">0</strong></div>
+        </div>
+      </div>
+      <div id="mis-logros" class="pj-progress-block">
+        <h3>Mis logros</h3><div id="pj-profile-medals" class="pj-progress-tags">Aún no hay medallas.</div>
+      </div>
+      <div id="habilidades-dominadas" class="pj-progress-block">
+        <h3>Habilidades dominadas</h3><div id="pj-profile-skills" class="pj-progress-tags">Sigue practicando para desbloquear habilidades.</div>
+      </div>
+    </section>
+
     <section class="section" id="actividades">
       <div class="section-head">
         <span class="section-kicker"><span class="material-symbols-rounded">rocket_launch</span> Elige tu aventura</span>
@@ -175,13 +202,13 @@
   <script src="js/avisos.js?v=20260820"></script>
   <script src="js/sonidos.js?v=20260829-ui"></script>
   <script src="js/mapa-mundi.js?v=20260902-espana"></script>
-  <script src="js/progreso.js?v=20260822"></script>
+  <script src="js/progreso.js?v=20261007-games"></script>
   <script src="js/partidas.js?v=20260822"></script>
   <script src="js/music.js?v=20260822"></script>
   <script src="js/code-engine.js?v=20260822"></script>
   <script src="js/modalidades.js?v=20260921"></script>
-  <script src="js/app.js?v=20260921-api"></script>
-  <script src="js/player.js?v=20260902-drag"></script>
+  <script src="js/app.js?v=20261007-games"></script>
+  <script src="js/player.js?v=20261007-games"></script>
   <script src="js/accesibilidad.js?v=20260902-ico"></script>
   <script>
     // Intro corta de marca: deja que la página respire antes del cargador real.

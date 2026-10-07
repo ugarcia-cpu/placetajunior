@@ -7,7 +7,13 @@ let pantallas = [];
 let pantallaIdx = 0;
 let kpEstado = [];
 let bloquesJuego = [];
+const PJ_JUEGOS_MAT = new Set(['carrera_matematica','batalla_matematica','tienda_matematica','batalla_fracciones','escape_room_matematico','detective_matematico','arquitectos','invasion_alienigena','pizzeria_fracciones','numero_misterioso']);
+let pjJuegoTimer = null;
 function adaptarInteractivo(b) {
+  if (b && PJ_JUEGOS_MAT.has(b.tipo)) {
+    b.datos = b.datos && typeof b.datos === 'object' ? b.datos : { ...b };
+    return b;
+  }
   if (b && !b.imagen_url) b.imagen_url = imagenDePJ(b);
   if (!b || b.datos || !['arrastrar','buscar','detective','laboratorio','construccion','presupuesto','dinero_euro','construir_frase','clasificar_palabras','completar_palabra','cazador_errores','lectura_interactiva','exploracion','simulacion','memoria','sonido','codigo_secreto','escape_room'].includes(b.tipo)) return b;
   const d={...b}; if(Array.isArray(d.destinos)&&!d.zonas)d.zonas=d.destinos.map(x=>x.id||x.texto); if(d.instruccion&&!d.instrucciones)d.instrucciones=d.instruccion; if(Array.isArray(d.elementos)&&b.tipo==='buscar')d.objetos=d.elementos.map(x=>`${x.texto||x.nombre||''}|${x.texto||x.nombre||''}|${x.correcto?'1':'0'}`); b.datos=d; return b;
@@ -261,7 +267,10 @@ function abrirJuego(act) {
     }
   } else {
     bloquesJuego.forEach((raw, bi) => { const b=adaptarInteractivo(raw);
-      if (b.tipo === 'test') {
+      if (PJ_JUEGOS_MAT.has(b.tipo)) {
+        pantallas.push({ tipo: 'juego_matematico', bi });
+        kpEstado.push(crearEstadoJuegoMatematico(b));
+      } else if (b.tipo === 'test') {
         (b.preguntas || []).forEach((p, pi) => {
           pantallas.push({ tipo: 'test', bi, pi, nPreg: b.preguntas.length });
           kpEstado.push({ respondida: false, sel: null, acierto: null });
@@ -585,6 +594,7 @@ function renderPantalla() {
   else if (s.tipo === 'espana') cuerpo = screenEspana(s, est);
   else if (s.tipo === 'meca') cuerpo = screenMeca(s, est);
   else if (s.tipo === 'nb') cuerpo = screenNB(s, est);
+  else if (s.tipo === 'juego_matematico') cuerpo = screenJuegoMatematico(s, est);
   else if (s.tipo === 'code') cuerpo = screenCode(s, est);
   else if (s.tipo === 'code_explica') cuerpo = screenCodeExplica(s);
   else if (s.tipo === 'interactivo') cuerpo = screenInteractive(s, est);
@@ -627,6 +637,8 @@ function renderPantalla() {
     <div class="kp-stage" data-screen-type="${esc(tipoPantalla)}" aria-live="polite">${cuerpo}</div>`;
   clearInterval(calcTimer);
   if (s.tipo === 'calculo') iniciarTimerCalculo();
+  if (s.tipo === 'juego_matematico') iniciarTimerJuegoMatematico(kpEstado[pantallaIdx]);
+  if (s.tipo === 'juego_matematico') iniciarTimerJuegoMatematico(kpEstado[pantallaIdx]);
   if (s.tipo === 'mapa') iniciarMapa(pantallaIdx);
   if (s.tipo === 'espana') iniciarEspana(pantallaIdx);
   if (s.tipo === 'meca') { const mi = document.getElementById('kp-meca-input-' + pantallaIdx); if (mi) setTimeout(function () { try { mi.focus(); } catch (e) { /* ok */ } }, 150); }
@@ -951,6 +963,208 @@ function kpResponderCodeReto(bi, optionIndex) {
   est.respondida = true; est.acierto = optionIndex === Number(reto.correcta ?? reto.mejor ?? 0);
   if (est.acierto) kpScore.verdes++; else kpScore.rojos++;
   renderPantalla(); mostrarFeedback(est.acierto, 'la solución más eficiente', pantallaNext);
+}
+
+function pjAleatorio(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function pjOpciones(correcta, cantidad = 3, min = 0, max = 144) {
+  cantidad = Math.max(1, Math.min(Number(cantidad) || 3, Math.floor(max - min + 1)));
+  const res = new Set([Number(correcta)]), paso = Math.max(1, Math.ceil((max - min) / 14));
+  while (res.size < cantidad) {
+    const propuesta = Math.max(min, Math.min(max, Number(correcta) + pjAleatorio(1, 5) * paso * (Math.random() < .5 ? -1 : 1)));
+    res.add(propuesta === Number(correcta) ? pjAleatorio(min, max) : propuesta);
+  }
+  return shuffleArr([...res]);
+}
+function pjNormalizarOperacion(op) {
+  return ({ addition:'suma', add:'suma', subtraction:'resta', sub:'resta', multiplication:'multiplicacion', multiply:'multiplicacion', division:'division', divide:'division', '×':'multiplicacion', '÷':'division' })[String(op || '').toLowerCase()] || String(op || 'suma').toLowerCase();
+}
+function pjGenerarPregunta(op, min, max, cantidad) {
+  op = pjNormalizarOperacion(op);
+  let a = pjAleatorio(min, max), b = pjAleatorio(min, max);
+  if (op === 'resta' && b > a) [a, b] = [b, a];
+  if (op === 'division' || op === 'división') { b = Math.max(1, b); a = b * pjAleatorio(1, Math.max(1, Math.floor(max / b))); }
+  const correcta = op === 'resta' ? a - b : op === 'multiplicacion' ? a * b : op === 'division' || op === 'división' ? a / b : a + b;
+  const simbolo = ({ suma: '+', resta: '−', multiplicacion: '×', division: '÷', 'división': '÷' })[op] || '+';
+  return { texto: `${a} ${simbolo} ${b} = ?`, correcta, opciones: pjOpciones(correcta, cantidad, 0, Math.max(max * max, correcta + 40)) };
+}
+function pjEsPrimo(n) { if (n < 2) return false; for (let i=2;i<=Math.sqrt(n);i++) if (n%i===0) return false; return true; }
+function pjCrearNumeroMisterioso(d) {
+  const min=Number(d.minNumber||1), max=Math.max(min+1,Number(d.maxNumber||50)), secreto=Number(d.numeroSecreto)||pjAleatorio(min,max);
+  const bajo=Math.min(secreto-1,Math.max(min,secreto-10)), alto=Math.max(secreto+1,Math.min(max,secreto+10)), condiciones=[n=>n>bajo,n=>n<alto,n=>n%2===secreto%2];
+  const pistasGeneradas=[`Soy mayor que ${bajo}.`,`Soy menor que ${alto}.`,secreto%2?'Soy impar.':'Soy par.'];
+  if (pjEsPrimo(secreto)) { condiciones.push(pjEsPrimo); pistasGeneradas.push('Soy un número primo.'); }
+  else if (secreto%5===0) { condiciones.push(n=>n%5===0); pistasGeneradas.push('Soy múltiplo de 5.'); }
+  else if (secreto%3===0) { condiciones.push(n=>n%3===0); pistasGeneradas.push('Soy divisible entre 3.'); }
+  else { const suma=String(secreto).split('').reduce((a,c)=>a+Number(c),0); condiciones.push(n=>String(n).split('').reduce((a,c)=>a+Number(c),0)===suma); pistasGeneradas.push(`La suma de mis cifras es ${suma}.`); }
+  const validos=[]; for(let n=min;n<=max;n++) if(condiciones.every(fn=>fn(n))) validos.push(n);
+  const errados=[]; for(let n=min;n<=max;n++) if(n!==secreto&&!condiciones.every(fn=>fn(n))) errados.push(n);
+  const cantidadDistractores=Math.min(3,Math.max(0,Math.floor(max-min)));
+  const distractores=shuffleArr(errados).slice(0,cantidadDistractores);
+  while(distractores.length<cantidadDistractores) { const n=pjAleatorio(min,max); if(n!==secreto&&!distractores.includes(n))distractores.push(n); }
+  const opciones=Array.isArray(d.opciones)&&d.opciones.length?d.opciones.map(Number):shuffleArr([secreto,...distractores]);
+  if(!opciones.includes(secreto))opciones.push(secreto);
+  return { secreto, pistas:Array.isArray(d.pistas)&&d.pistas.length?d.pistas:pistasGeneradas, opciones, correcta:opciones.indexOf(secreto), candidatos:validos.length };
+}
+function pjDatosJuego(b) { return b.datos || b; }
+function crearEstadoJuegoMatematico(b) {
+  const d = pjDatosJuego(b), tipo = b.tipo, preguntas = [];
+  const cantidad = Math.max(1, Math.min(50, Number(d.questions || d.preguntas || 10)));
+  if (['carrera_matematica', 'batalla_matematica', 'invasion_alienigena'].includes(tipo)) {
+    const opsRaw = d.operations || d.operaciones || ['multiplicacion'];
+    const ops = Array.isArray(opsRaw) ? opsRaw : [opsRaw];
+    const min = Number(d.minNumber ?? d.numeroMinimo ?? 1), max = Math.max(min + 1, Number(d.maxNumber ?? d.numeroMaximo ?? 12));
+    const nOpciones = Math.max(2, Math.min(6, Number(d.answerOptions || d.numeroRespuestas || 3)));
+    const totalPreguntas = tipo === 'batalla_matematica' ? 30 : cantidad, resultados = new Set();
+    for (let i = 0; i < totalPreguntas; i++) {
+      const rangoProgresivo = d.progresiva === false ? max : min + Math.ceil((max - min) * (.5 + .5 * (i + 1) / totalPreguntas));
+      let q = pjGenerarPregunta(ops[i % ops.length] || 'suma', min, rangoProgresivo, nOpciones), intentos = 0;
+      while (resultados.has(q.correcta) && intentos++ < 100) q = pjGenerarPregunta(ops[i % ops.length] || 'suma', min, rangoProgresivo, nOpciones);
+      resultados.add(q.correcta); preguntas.push(q);
+    }
+  } else if (tipo === 'batalla_fracciones') {
+    const nivel = Number(d.difficulty || d.dificultad || 1);
+    for (let i = 0; i < cantidad; i++) {
+      if (nivel >= 4) {
+        const den = pjAleatorio(3, 10), a = pjAleatorio(1, den - 1), c = pjAleatorio(1, den - a), respuesta = `${a+c}/${den}`;
+        const opciones = shuffleArr([...new Set([respuesta, `${Math.max(0,a+c-1)}/${den}`, `${Math.min(den,a+c+1)}/${den}`])]);
+        preguntas.push({ operacion: `${a}/${den} + ${c}/${den}`, opciones, correcta: opciones.indexOf(respuesta), visual: false });
+      } else {
+        const denA = pjAleatorio(2, 10), denB = nivel === 2 ? denA : pjAleatorio(2, 10), a = pjAleatorio(1, denA - 1), c = pjAleatorio(1, denB - 1);
+        preguntas.push({ a, denA, c, denB, visual: d.representacionVisual !== false && nivel < 3, correcta: a / denA > c / denB ? 0 : 1 });
+      }
+    }
+  } else if (tipo === 'detective_matematico') { const opciones = d.opciones || []; preguntas.push({ historia: d.historia || '', pistas: d.pistas || [], opciones, correcta: typeof d.correcta === 'string' ? Math.max(0, opciones.indexOf(d.correcta)) : Number(d.correcta || 0) }); }
+  else if (tipo === 'numero_misterioso') preguntas.push(pjCrearNumeroMisterioso(d));
+  return { tipo, preguntas, indice: 0, aciertos: 0, respondidas: 0, vidasJugador: Number(d.vidasJugador || 4), vidasRival: Number(d.vidasEnemigo || 3), tiempo: Math.max(0, Number(d.timeLimit || d.tiempoMaximo || 0)), terminado: false, victoria: null, recompensa: d.rewards || b.rewards || { xp: 100, coins: 20 }, premiado: false, seleccion: [], pistasResueltas: [], problemaEscape: 0, habitacion: 0 };
+}
+function iniciarTimerJuegoMatematico(e) {
+  clearInterval(pjJuegoTimer); pjJuegoTimer = null;
+  if (!e || e.terminado || !e.tiempo || !['carrera_matematica', 'invasion_alienigena'].includes(e.tipo)) return;
+  pjJuegoTimer = setInterval(() => { if (pantallas[pantallaIdx]?.tipo !== 'juego_matematico') { clearInterval(pjJuegoTimer); return; } e.tiempo = Math.max(0, e.tiempo - 1); if (!e.tiempo) pjFinalizarJuego(e, false); renderPantalla(); }, 1000);
+}
+function pjFinalizarJuego(e, victoria) {
+  e.terminado = true; e.victoria = !!victoria; clearInterval(pjJuegoTimer); pjJuegoTimer = null;
+  if (victoria && !e.premiado) { e.premiado = true; if (window.PJProgreso?.recompensar) { window.PJProgreso.recompensar(e.recompensa, e.tipo); window.dispatchEvent(new CustomEvent('pj:progreso')); } }
+}
+function pjResponderJuego(bi, respuesta) {
+  const e = kpEstado[pantallaIdx], q = e.preguntas[e.indice];
+  if (!e || e.terminado || !q) return;
+  const buena = Number(respuesta) === Number(q.correcta);
+  e.respondidas++;
+  if (buena) { e.aciertos++; kpScore.verdes++; } else kpScore.rojos++;
+  if (e.tipo === 'batalla_matematica') {
+    if (buena) e.vidasRival--; else e.vidasJugador--;
+    if (e.vidasRival <= 0 || e.vidasJugador <= 0) pjFinalizarJuego(e, e.vidasRival <= 0);
+    else e.indice++;
+  } else {
+    e.indice++;
+    if (e.tipo === 'carrera_matematica' && !buena) e.tiempo = Math.max(0, e.tiempo - 3);
+    if (e.indice >= e.preguntas.length) pjFinalizarJuego(e, true);
+  }
+  if (!e.terminado && e.tiempo === 0) pjFinalizarJuego(e, false);
+  renderPantalla();
+}
+function pjReintentarJuego(bi) { kpEstado[pantallaIdx] = crearEstadoJuegoMatematico(bloquesJuego[bi]); renderPantalla(); }
+function pjTiendaComprobar(bi) {
+  const e = kpEstado[pantallaIdx], d = pjDatosJuego(bloquesJuego[bi]), productos = d.productos || [], compra = d.compra || d.compras || [];
+  const descuento = Math.max(0, Math.min(100, Number(d.discountPct ?? d.descuentoPct ?? 0))) / 100;
+  const total = compra.reduce((sum, item) => { const p = productos[Number(item.producto ?? item.indice ?? 0)] || {}; const precio = Number(item.precio ?? p.precio ?? String(p).split('|')[2] ?? 0); return sum + Math.round(precio * (1 - descuento) * 100) / 100 * Math.max(1, Number(item.cantidad || 1)); }, 0);
+  const pago = Number(d.pagaCon ?? d.dinero ?? 20), totalTexto = document.getElementById(`pj-shop-total-${bi}`)?.value || '', cambioTexto = document.getElementById(`pj-shop-change-${bi}`)?.value || '';
+  e.totalInput = totalTexto; e.changeInput = cambioTexto;
+  const totalDicho = Number(totalTexto.replace(',', '.')), cambioDicho = Number(cambioTexto.replace(',', '.'));
+  const buena = Math.round(totalDicho * 100) === Math.round(total * 100) && Math.round(cambioDicho * 100) === Math.round((pago - total) * 100);
+  if (buena) { e.aciertos = 1; kpScore.verdes++; pjFinalizarJuego(e, true); }
+  else { kpScore.rojos++; e.error = `Revisa el total y el cambio. El pago disponible es ${pago.toFixed(2)} €.`; }
+  renderPantalla();
+}
+function pjArquitectoComprobar(bi) {
+  const e = kpEstado[pantallaIdx], d = pjDatosJuego(bloquesJuego[bi]), ancho = Number(e.ancho), alto = Number(e.alto);
+  const correcto = d.condicion === 'area' ? ancho * alto === Number(d.area || d.objetivo || 0) : 2 * (ancho + alto) === Number(d.perimetro || d.objetivo || 20);
+  if (correcto) { e.aciertos = 1; kpScore.verdes++; pjFinalizarJuego(e, true); }
+  else { kpScore.rojos++; e.error = 'Esas medidas no cumplen la condición del plano. Prueba otra combinación.'; }
+  renderPantalla();
+}
+function pjArquitectoCambiar(bi, dimension, delta) {
+  const e=kpEstado[pantallaIdx], clave=dimension==='ancho'?'ancho':'alto';
+  e[clave]=Math.max(1,Math.min(10,Number(e[clave]||4)+delta));
+  e.error=''; renderPantalla();
+}
+function pjPizzaSeleccionar(bi, parte) {
+  const e = kpEstado[pantallaIdx]; if (e.terminado) return;
+  e.seleccion = e.seleccion || [];
+  e.seleccion = e.seleccion.includes(parte) ? e.seleccion.filter(x => x !== parte) : [...e.seleccion, parte];
+  renderPantalla();
+}
+function pjPizzaComprobar(bi) {
+  const e = kpEstado[pantallaIdx], d = pjDatosJuego(bloquesJuego[bi]);
+  if (e.seleccion.length === pjPizzaObjetivo(d).numerador) { e.aciertos = 1; kpScore.verdes++; pjFinalizarJuego(e, true); }
+  else { kpScore.rojos++; e.error = `Has elegido ${e.seleccion.length} porciones. Vuelve a contar la fracción solicitada.`; }
+  renderPantalla();
+}
+function pjPizzaObjetivo(d) {
+  const sumandos = Array.isArray(d.sumandos) ? d.sumandos : [];
+  if (!sumandos.length) return { numerador:Number(d.numerador||3), denominador:Number(d.denominador||8) };
+  const gcd=(a,b)=>b?gcd(b,a%b):a, mcm=(a,b)=>a*b/gcd(a,b);
+  const denominador=sumandos.reduce((acc,f)=>mcm(acc,Number(f.denominador)||1),1);
+  const numerador=sumandos.reduce((acc,f)=>acc+Number(f.numerador||0)*(denominador/(Number(f.denominador)||1)),0);
+  const divisor=gcd(numerador,denominador);
+  return { numerador:numerador/divisor, denominador:denominador/divisor };
+}
+function pjEscapeResponder(bi, pi, oi) {
+  const e = kpEstado[pantallaIdx], d = pjDatosJuego(bloquesJuego[bi]), habitaciones = d.habitaciones || [{ pruebas: d.pruebas || [], codigo: d.contraseña || '' }], room = habitaciones[e.habitacion], prueba = room.pruebas[e.problemaEscape];
+  if (oi !== Number(prueba.correcta || 0)) { kpScore.rojos++; e.error = 'Esa respuesta no resuelve la pista. Inténtalo otra vez.'; renderPantalla(); return; }
+  kpScore.verdes++; e.pistasResueltas.push(String(prueba.cifra ?? prueba.resultado ?? prueba.respuesta ?? oi)); e.problemaEscape++; e.error = '';
+  if (e.problemaEscape >= room.pruebas.length) e.introducirCodigo = true;
+  renderPantalla();
+}
+function pjEscapeCodigo(bi) {
+  const e = kpEstado[pantallaIdx], d = pjDatosJuego(bloquesJuego[bi]), habitaciones = d.habitaciones || [{ pruebas: d.pruebas || [], codigo: d.contraseña || '' }], room = habitaciones[e.habitacion], codigo = document.getElementById(`pj-room-code-${bi}`)?.value.trim() || '';
+  if (codigo === String(room.codigo || e.pistasResueltas.join(''))) {
+    e.habitacion++;
+    if (e.habitacion >= habitaciones.length) { e.aciertos = e.pistasResueltas.length; pjFinalizarJuego(e, true); }
+    else { e.problemaEscape = 0; e.pistasResueltas = []; e.introducirCodigo = false; }
+  } else { kpScore.rojos++; e.error = 'El código no abre la puerta. Revisa las pistas.'; }
+  renderPantalla();
+}
+function screenJuegoMatematico(s, e) {
+  const b = bloquesJuego[s.bi] || {}, d = pjDatosJuego(b), tipo = e.tipo;
+  const titulos = { carrera_matematica:'Carrera matemática', batalla_matematica:'Batalla matemática', tienda_matematica:'La tienda', batalla_fracciones:'Batalla de fracciones', escape_room_matematico:'Escape room matemático', detective_matematico:'Detectives matemáticos', arquitectos:'Arquitectos', invasion_alienigena:'Invasión alienígena', pizzeria_fracciones:'Pizzería de fracciones', numero_misterioso:'Número misterioso' };
+  let html = `<div class="kp-screen pj-math-game"><div class="kp-qt">${esc(b.titulo || titulos[tipo])}</div><p>${esc(b.instrucciones || d.instrucciones || '')}</p>`;
+  if (e.terminado) {
+    const detalle = tipo === 'batalla_matematica' && !e.victoria ? 'La partida ha terminado. Tu progreso se conserva.' : `Aciertos: ${e.aciertos} de ${e.respondidas || e.aciertos}.`;
+    html += `<div class="pj-game-result ${e.victoria?'is-win':'is-loss'}"><strong>${e.victoria?'¡Reto superado!':'Partida terminada'}</strong><span>${esc(detalle)}</span>${e.victoria?`<span>⭐ ${Number(e.recompensa.xp||0)} XP · 🪙 ${Number(e.recompensa.coins||0)} monedas</span>`:`<button class="kp-btn" onclick="pjReintentarJuego(${s.bi})">Volver a intentarlo</button>`}</div>`;
+  } else if (['carrera_matematica','batalla_matematica','invasion_alienigena'].includes(tipo)) {
+    const q = e.preguntas[e.indice] || {};
+    html += tipo === 'batalla_matematica' ? `<div class="pj-battle-status"><span>🧙 ${'❤️'.repeat(Math.max(0,e.vidasJugador))}</span><span>👹 ${'❤️'.repeat(Math.max(0,e.vidasRival))}</span></div>` : `<div class="pj-race-status">${tipo==='carrera_matematica'?'🏎️':'👽'} ${e.aciertos} / ${e.preguntas.length} · ⏱ ${e.tiempo || 'sin límite'} s</div>`;
+    html += `<div class="pj-math-question ${tipo==='invasion_alienigena'?'pj-alien-question':''}" style="--alien-speed:${Math.max(1.2,5-e.indice*.25)}s">${esc(q.texto)}</div><div class="pj-math-options">${(q.opciones||[]).map((o,i)=>`<button class="kp-opt" onclick="pjResponderJuego(${s.bi},${o})">${tipo==='invasion_alienigena'?'👽 ':''}${esc(o)}</button>`).join('')}</div>`;
+  } else if (tipo === 'batalla_fracciones') {
+    const q=e.preguntas[e.indice], visual=(n,den)=>`<div class="pj-fraction-visual"><span style="background:conic-gradient(#ef795f ${n/den*100}%,#e5e7eb 0)"></span><b>${n}/${den}</b></div>`;
+    html += `<div class="pj-fraction-compare">${q.visual?visual(q.a,q.denA):''}<strong>${q.operacion?esc(`${q.operacion} = ?`):'¿Cuál es mayor?'}</strong>${q.visual?visual(q.c,q.denB):''}</div><div class="pj-math-options">${(q.opciones||[`${q.a}/${q.denA}`,`${q.c}/${q.denB}`]).map((o,i)=>`<button class="kp-opt" onclick="pjResponderJuego(${s.bi},${i})">${esc(o)}</button>`).join('')}</div>`;
+  } else if (tipo === 'detective_matematico' || tipo === 'numero_misterioso') {
+    const q=e.preguntas[0];
+    if (q.historia) html += `<p>${esc(q.historia)}</p>`;
+    html += `<div class="pj-math-clues">${(q.pistas||[]).map(p=>`<p>🔎 ${esc(p)}</p>`).join('')}</div><div class="pj-math-options">${(q.opciones||[]).map((o,i)=>`<button class="kp-opt" onclick="pjResponderJuego(${s.bi},${i})">${esc(o)}</button>`).join('')}</div>`;
+  } else if (tipo === 'tienda_matematica') {
+    const productos=d.productos||[], compra=d.compra||d.compras||[];
+    const parse=(x)=>typeof x==='string'?{emoji:x.split('|')[0],nombre:x.split('|')[1],precio:Number(x.split('|')[2])||0}:x;
+    const names=compra.map(i=>{const p=parse(productos[Number(i.producto??i.indice??0)]||{});return `${p.emoji||'🛍️'} ${p.nombre||'Producto'}`;}).join(' + '), pago=Number(d.pagaCon??d.dinero??20);
+    const descuento=Math.max(0,Math.min(100,Number(d.discountPct??d.descuentoPct??0)));
+    html += `<div class="pj-shop-products">${productos.map(x=>{const p=parse(x);return `<span>${esc(p.emoji||'🛍️')} ${esc(p.nombre||'Producto')} · ${Number(p.precio||0).toFixed(2)} €</span>`;}).join('')}</div>${descuento?`<p>Descuento aplicado: ${descuento}%</p>`:''}<p>Compra: <strong>${esc(names)}</strong></p><label>Total <input id="pj-shop-total-${s.bi}" type="number" min="0" step="0.01" inputmode="decimal" value="${esc(e.totalInput||'')}"> €</label><p>Pagas con <strong>${pago.toFixed(2)} €</strong></p><label>Cambio <input id="pj-shop-change-${s.bi}" type="number" min="0" step="0.01" inputmode="decimal" value="${esc(e.changeInput||'')}"> €</label><button class="kp-btn" onclick="pjTiendaComprobar(${s.bi})">Comprobar compra</button>`;
+  } else if (tipo === 'arquitectos') {
+    const porArea=d.condicion==='area', meta=Number(porArea?d.area||d.objetivo||24:d.perimetro||d.objetivo||20);
+    e.ancho=Number(e.ancho??d.anchoInicial??3); e.alto=Number(e.alto??d.altoInicial??3);
+    html += `<div class="pj-architect-grid" style="grid-template-columns:repeat(${e.ancho},minmax(20px,34px))" aria-label="Plano de ${e.ancho} por ${e.alto} unidades">${Array.from({length:e.ancho*e.alto},()=>'<span>⬜</span>').join('')}</div><div class="pj-architect-controls"><div><span>Ancho: ${e.ancho}</span><button type="button" aria-label="Reducir ancho" onclick="pjArquitectoCambiar(${s.bi},'ancho',-1)">−</button><button type="button" aria-label="Aumentar ancho" onclick="pjArquitectoCambiar(${s.bi},'ancho',1)">+</button></div><div><span>Alto: ${e.alto}</span><button type="button" aria-label="Reducir alto" onclick="pjArquitectoCambiar(${s.bi},'alto',-1)">−</button><button type="button" aria-label="Aumentar alto" onclick="pjArquitectoCambiar(${s.bi},'alto',1)">+</button></div></div><p>Construye un rectángulo con ${porArea?'un área de':'un perímetro de'} <strong>${meta}</strong> unidades.</p><button class="kp-btn" onclick="pjArquitectoComprobar(${s.bi})">Comprobar plano</button>`;
+  } else if (tipo === 'pizzeria_fracciones') {
+    const objetivo=pjPizzaObjetivo(d), den=Math.max(2,Math.min(16,objetivo.denominador)), num=objetivo.numerador, pedido=(d.sumandos||[]).map(f=>`${f.numerador}/${f.denominador}`).join(' + ');
+    html += `<p>El cliente quiere <strong>${pedido?`${esc(pedido)} = `:''}${num}/${den}</strong> de pizza.</p><div class="pj-pizza-pieces">${Array.from({length:den},(_,i)=>`<button aria-label="Porción ${i+1}" class="pj-pizza-piece ${e.seleccion.includes(i)?'is-selected':''}" onclick="pjPizzaSeleccionar(${s.bi},${i})">🍕</button>`).join('')}</div><p>Porciones elegidas: ${e.seleccion.length} / ${den}</p><button class="kp-btn" onclick="pjPizzaComprobar(${s.bi})">Servir al cliente</button>`;
+  } else if (tipo === 'escape_room_matematico') {
+    const habitaciones=d.habitaciones||[{pruebas:d.pruebas||[],codigo:d.contraseña||''}], room=habitaciones[e.habitacion]||habitaciones[0], prueba=room.pruebas[e.problemaEscape];
+    html += `<div class="pj-room-progress">Habitación ${e.habitacion+1} / ${habitaciones.length} · Pistas ${e.pistasResueltas.length} / ${room.pruebas.length}</div>`;
+    if (prueba) html += `<p>${esc(prueba.pregunta||'Resuelve la pista')}</p><div class="pj-math-options">${(prueba.opciones||[]).map((o,i)=>`<button class="kp-opt" onclick="pjEscapeResponder(${s.bi},${e.problemaEscape},${i})">${esc(o)}</button>`).join('')}</div>`;
+    else html += `<label>Código de la puerta <input id="pj-room-code-${s.bi}" inputmode="numeric" autocomplete="off"></label><button class="kp-btn" onclick="pjEscapeCodigo(${s.bi})">Abrir puerta</button>`;
+  }
+  if (e.error) html += `<p class="pj-game-error" role="status">${esc(e.error)}</p>`;
+  return html + '</div>';
 }
 
 function screenInteractive(s, est) {
